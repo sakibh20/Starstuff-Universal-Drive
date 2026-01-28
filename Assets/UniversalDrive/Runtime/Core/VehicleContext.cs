@@ -18,5 +18,9 @@ namespace UniversalDrive
         // Motion (local space)
         internal float ForwardSpeed;
         internal float LateralSpeed;
+        
+        // Represents how much lateral authority the vehicle currently has
+        // Derived from speed, grounding, and surface contact.
+        public float GripFactor;
     }
 }
