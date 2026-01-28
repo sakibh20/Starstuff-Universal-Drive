@@ -23,6 +23,10 @@ namespace UniversalDrive
         /// <param name="transform"></param>
         internal void Apply(VehicleContext context, Transform transform)
         {
+            // Upright stabilization is only applied while grounded
+            // to avoid unrealistic mid-air corrections.
+            if (!context.IsGrounded) return;
+            
             Rigidbody rb = context.Rigidbody;
             // Decide which "up" we want
             Vector3 targetUp = context.IsGrounded ? context.GroundNormal : Vector3.up;

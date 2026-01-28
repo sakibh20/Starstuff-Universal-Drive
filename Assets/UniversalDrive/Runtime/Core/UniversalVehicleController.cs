@@ -22,6 +22,9 @@ namespace UniversalDrive
         private LateralGrip _lateralGrip;
         private UprightStabilization _uprightStabilization;
         private Downforce _downforce;
+        private CenterOfMassAdjuster _centerOfMassAdjuster;
+        
+        private Bounds _bounds;
 
         private void Awake()
         {
@@ -40,6 +43,7 @@ namespace UniversalDrive
             _uprightStabilization = new UprightStabilization();
             _lateralGrip = new LateralGrip();
             _downforce = new Downforce();
+            _centerOfMassAdjuster = new CenterOfMassAdjuster();
 
             InitializeRigidbody();
         }
@@ -57,37 +61,40 @@ namespace UniversalDrive
 
         private void InitializeRigidbody()
         {
-            // TODO: Mass scaling based on bounds
-
+            _bounds = ComputeBounds();
+            _centerOfMassAdjuster.Apply(_context, _bounds);
+            _groundDetector.UpdateRayLength(_bounds);
+            
             _context.Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
             _context.Rigidbody.angularDamping = 1f;
         }
 
         private void UpdateContext()
         {
-            // TODO: Populate bounds from renderers/colliders
-
             Vector3 localVelocity = transform.InverseTransformDirection(_context.Rigidbody.linearVelocity);
-
-            float speed01 = Mathf.Clamp01(Mathf.Abs(_context.ForwardSpeed) / maxSpeed);
-            // Grip increases with speed but only when grounded
-            _context.GripFactor = _context.IsGrounded ? Mathf.Lerp(0.6f, 1.2f, speed01) : 0.2f;
 
             _context.ForwardSpeed = localVelocity.z;
             _context.LateralSpeed = localVelocity.x;
 
             _context.IsGrounded = _groundDetector.IsGrounded;
             _context.GroundNormal = _groundDetector.GroundNormal;
+
+            float speed01 = Mathf.Clamp01(Mathf.Abs(_context.ForwardSpeed) / maxSpeed);
+
+            // Grip increases with speed but only when grounded
+            _context.GripFactor = _context.IsGrounded ? Mathf.Lerp(0.6f, 1.2f, speed01) : 0.2f;
         }
 
         private void ApplyForces()
         {
             if (_input == null) return;
 
-            // Forward movement
-            Vector3 force = transform.forward * (_input.Throttle * forwardSpeedFactor);
+            // Forward propulsion force
+            // Full authority when grounded, heavily reduced while airborne
+            float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+            Vector3 force = transform.forward * (_input.Throttle * forwardSpeedFactor * driveAuthority);
             _context.Rigidbody.AddForce(force, ForceMode.Acceleration);
-
+            
             // Clamp horizontal velocity to enforce top speed
             // Vertical velocity (gravity, jumps) is intentionally preserved
             Vector3 velocity = _context.Rigidbody.linearVelocity;
@@ -121,6 +128,61 @@ namespace UniversalDrive
                 // Uses grip factor to determine how aggressively velocity is reshaped
                 _context.Rigidbody.AddForce(correction * 2.5f * _context.GripFactor, ForceMode.Acceleration);
             }
+            
+            if (_context.IsGrounded && IsUpsideDown())
+            {
+                // Applies corrective torque to assist flip recovery.
+                // This does not auto-flip the vehicle; it biases recovery
+                // while still requiring player input or momentum.
+                Vector3 recoveryAxis = Vector3.Cross(transform.up, Vector3.up);
+                _context.Rigidbody.AddTorque(recoveryAxis * 20f * _context.GripFactor, ForceMode.Acceleration);
+            }
+        }
+        
+        private Bounds ComputeBounds()
+        {
+            // Computes combined renderer bounds to represent the visual footprint
+            // of the object regardless of collider configuration.
+            Bounds bounds = new Bounds(transform.position, Vector3.zero);
+            foreach (Renderer r in GetComponentsInChildren<Renderer>())
+            {
+                bounds.Encapsulate(r.bounds);
+            }
+            return bounds;
+        }
+        
+        bool IsUpsideDown()
+        {
+            // Dot product below threshold indicates the object is significantly inverted
+            return Vector3.Dot(transform.up, Vector3.up) < 0.2f;
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            if (_context == null || _context.Rigidbody == null) return;
+
+            Vector3 pos = transform.position;
+
+            // Forward direction (vehicle facing)
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(pos, pos + transform.forward * 2f);
+
+            // Lateral velocity visualization (sideways motion)
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(pos, pos + transform.right * _context.LateralSpeed);
+
+            // Grip / ground authority indicator
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(pos, pos + Vector3.down * _context.GripFactor);
+
+            // Center of mass visualization
+            Gizmos.color = Color.yellow;
+            Vector3 com = _context.Rigidbody.worldCenterOfMass;
+            Gizmos.DrawSphere(com, 0.15f);
+
+            // Line from object origin to center of mass
+            Gizmos.color = new Color(1f, 1f, 0f, 0.6f);
+            Gizmos.DrawLine(pos, com);
         }
     }
 }
