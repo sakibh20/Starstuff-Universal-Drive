@@ -1,7 +1,14 @@
-// NOTE:
-// This controller intentionally reshapes velocity and applies stabilizing forces
-// to prioritize player control over physical realism.
-// Gravity and collision resolution remain fully handled by PhysX.
+// DESIGN PHILOSOPHY
+// -----------------
+// This vehicle controller prioritizes player control, clarity, and extensibility
+// over strict physical realism.
+//
+// PhysX remains responsible for gravity, collision resolution, and integration.
+// This system selectively reshapes forces and velocities to achieve predictable,
+// arcade-style handling across different vehicle sizes and platforms.
+//
+// All authority (drive, steering, stabilization) is intentionally scaled based
+// on grounded state and grip to prevent unrealistic behavior while airborne.
 
 using UnityEngine;
 
@@ -10,8 +17,8 @@ namespace UniversalDrive
     [RequireComponent(typeof(Rigidbody))]
     internal sealed class UniversalVehicleController : MonoBehaviour
     {
-        [SerializeField] private float forwardSpeedFactor = 1f;
-        [SerializeField] private float turnSpeedFactor = 1f;
+        [SerializeField] private float forwardSpeedFactor = 20f;
+        [SerializeField] private float turnSpeedFactor = 40f;
         [SerializeField] float maxSpeed = 15f;
 
         private VehicleContext _context;
@@ -106,9 +113,7 @@ namespace UniversalDrive
             }
 
             // Steering/Yaw torque
-            float steerTorque = _input.Steering * turnSpeedFactor * _context.GripFactor;
-            // Reduces steering authority by 80% while airborne to prevent unrealistic mid-air yaw control
-            steerTorque *= _context.IsGrounded ? 1f : 0.2f;
+            float steerTorque = _input.Steering * turnSpeedFactor * _context.ControlAuthority;
             _context.Rigidbody.AddTorque(Vector3.up * steerTorque, ForceMode.Acceleration);
             
             if (!_context.IsGrounded)
@@ -174,15 +179,19 @@ namespace UniversalDrive
             // Grip / ground authority indicator
             Gizmos.color = Color.blue;
             Gizmos.DrawLine(pos, pos + Vector3.down * _context.GripFactor);
+            
+            // Ground detection ray
+            Gizmos.color = _context.IsGrounded ? Color.green : Color.magenta;
+            Gizmos.DrawLine(transform.position, transform.position + Vector3.down * _groundDetector.DebugRayLength);
 
             // Center of mass visualization
             Gizmos.color = Color.yellow;
             Vector3 com = _context.Rigidbody.worldCenterOfMass;
             Gizmos.DrawSphere(com, 0.15f);
 
-            // Line from object origin to center of mass
-            Gizmos.color = new Color(1f, 1f, 0f, 0.6f);
-            Gizmos.DrawLine(pos, com);
+            // // Line from object origin to center of mass
+            // Gizmos.color = new Color(1f, 1f, 0f, 0.6f);
+            // Gizmos.DrawLine(pos, com);
         }
     }
 }

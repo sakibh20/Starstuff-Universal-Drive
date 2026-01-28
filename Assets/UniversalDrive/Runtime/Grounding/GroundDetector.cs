@@ -9,6 +9,7 @@ namespace UniversalDrive
 
         // Dynamically updated
         private float _rayLength;
+        internal float DebugRayLength => _rayLength;
 
         internal bool IsGrounded { get; private set; }
         internal Vector3 GroundNormal { get; private set; }

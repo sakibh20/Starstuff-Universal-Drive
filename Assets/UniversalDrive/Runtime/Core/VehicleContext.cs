@@ -22,5 +22,14 @@ namespace UniversalDrive
         // Represents how much lateral authority the vehicle currently has
         // Derived from speed, grounding, and surface contact.
         public float GripFactor;
+        
+        internal float ControlAuthority
+        {
+            get
+            {
+                if (!IsGrounded) return 0.2f;
+                return GripFactor;
+            }
+        }
     }
 }
