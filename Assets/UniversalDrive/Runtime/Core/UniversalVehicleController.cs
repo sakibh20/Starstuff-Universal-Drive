@@ -92,55 +92,176 @@ namespace UniversalDrive
             _context.GripFactor = _context.IsGrounded ? Mathf.Lerp(0.6f, 1.2f, speed01) : 0.2f;
         }
 
+        // private void ApplyForces()
+        // {
+        //     if (_input == null) return;
+        //     
+        //     Debug.Log($"Input Throttle: {_input.Throttle}, Steering: {_input.Steering}");
+        //
+        //     // Forward propulsion force
+        //     // Full authority when grounded, heavily reduced while airborne
+        //     // float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+        //     // Vector3 force = transform.forward * (_input.Throttle * forwardSpeedFactor * driveAuthority);
+        //     // _context.Rigidbody.AddForce(force, ForceMode.Acceleration);
+        //     
+        //     // Get input vector from controller (X = left/right, Y = forward/backward)
+        //     Vector2 inputVector = new Vector2(_input.Steering, _input.Throttle); 
+        //
+        //     // Convert to world-space movement relative to vehicle forward
+        //     Vector3 forward = transform.forward;
+        //     Vector3 right = transform.right;
+        //
+        //     // Combine input with local axes
+        //     Vector3 moveDir = (forward * inputVector.y + right * inputVector.x).normalized;
+        //
+        //     // Scale by speed and authority
+        //     float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+        //     Vector3 force = moveDir * forwardSpeedFactor * driveAuthority;
+        //
+        //     // Apply force
+        //     _context.Rigidbody.AddForce(force, ForceMode.Acceleration);
+        //
+        //     
+        //     // Clamp horizontal velocity to enforce top speed
+        //     // Vertical velocity (gravity, jumps) is intentionally preserved
+        //     Vector3 velocity = _context.Rigidbody.linearVelocity;
+        //     Vector3 horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
+        //     if (horizontalVelocity.magnitude > maxSpeed)
+        //     {
+        //         horizontalVelocity = horizontalVelocity.normalized * maxSpeed;
+        //         _context.Rigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
+        //     }
+        //
+        //     // Steering/Yaw torque
+        //     float steerTorque = _input.Steering * turnSpeedFactor * _context.ControlAuthority;
+        //     _context.Rigidbody.AddTorque(Vector3.up * steerTorque, ForceMode.Acceleration);
+        //     
+        //     if (!_context.IsGrounded)
+        //     {
+        //         // Airborne angular cap
+        //         _context.Rigidbody.angularVelocity = Vector3.ClampMagnitude(_context.Rigidbody.angularVelocity, 2.5f);
+        //     }
+        //     else
+        //     {
+        //         //Steering torque alone does not reliably redirect linear momentum at higher speeds.
+        //         //To achieve arcade-style responsiveness, I introduced a controlled velocity-alignment
+        //         //force that gently reshapes the velocity vector toward the vehicle’s facing direction while grounded.
+        //         velocity = _context.Rigidbody.linearVelocity;
+        //         //Vector3 forward = Vector3.forward;
+        //         Vector3 projected = Vector3.Project(velocity, forward);
+        //         Vector3 correction = projected - velocity;
+        //         // Uses grip factor to determine how aggressively velocity is reshaped
+        //         _context.Rigidbody.AddForce(correction * 2.5f * _context.GripFactor, ForceMode.Acceleration);
+        //     }
+        //     
+        //     if (_context.IsGrounded && IsUpsideDown())
+        //     {
+        //         // Applies corrective torque to assist flip recovery.
+        //         // This does not auto-flip the vehicle; it biases recovery
+        //         // while still requiring player input or momentum.
+        //         Vector3 recoveryAxis = Vector3.Cross(transform.up, Vector3.up);
+        //         _context.Rigidbody.AddTorque(recoveryAxis * 20f * _context.GripFactor, ForceMode.Acceleration);
+        //     }
+        // }
+        
         private void ApplyForces()
         {
             if (_input == null) return;
 
-            // Forward propulsion force
-            // Full authority when grounded, heavily reduced while airborne
-            float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
-            Vector3 force = transform.forward * (_input.Throttle * forwardSpeedFactor * driveAuthority);
-            _context.Rigidbody.AddForce(force, ForceMode.Acceleration);
-            
-            // Clamp horizontal velocity to enforce top speed
-            // Vertical velocity (gravity, jumps) is intentionally preserved
-            Vector3 velocity = _context.Rigidbody.linearVelocity;
-            Vector3 horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
-            if (horizontalVelocity.magnitude > maxSpeed)
-            {
-                horizontalVelocity = horizontalVelocity.normalized * maxSpeed;
-                _context.Rigidbody.linearVelocity = new Vector3(horizontalVelocity.x, velocity.y, horizontalVelocity.z);
-            }
+            Vector3 forward = transform.forward;
 
-            // Steering/Yaw torque
-            float steerTorque = _input.Steering * turnSpeedFactor * _context.ControlAuthority;
-            _context.Rigidbody.AddTorque(Vector3.up * steerTorque, ForceMode.Acceleration);
-            
-            if (!_context.IsGrounded)
+            if (_input is MobileVehicleInput mobile)
             {
-                // Airborne angular cap
-                _context.Rigidbody.angularVelocity = Vector3.ClampMagnitude(_context.Rigidbody.angularVelocity, 2.5f);
+                Vector2 inputVector = mobile.InputVector;
+                
+                // Forward/backward
+                float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+                
+                // Any joystick drag = forward intent
+                float throttle = Mathf.Clamp01(inputVector.magnitude);
+                
+                // Apply forward force ALWAYS when dragging
+                _context.Rigidbody.AddForce(forward * throttle * forwardSpeedFactor * driveAuthority, ForceMode.Acceleration);
+                
+                // Steering still comes from X
+                float steerTorque = inputVector.x * turnSpeedFactor * _context.ControlAuthority * throttle; // scale steering by movement
+                
+                _context.Rigidbody.AddTorque(Vector3.up * steerTorque, ForceMode.Acceleration);
+                
+                
+                // Vector2 inputVector = mobile.InputVector;
+                //
+                // float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+                //
+                // // Always move forward if joystick is dragged
+                // float throttle = Mathf.Clamp01(inputVector.magnitude);
+                // _context.Rigidbody.AddForce(forward * throttle * forwardSpeedFactor * driveAuthority, ForceMode.Acceleration);
+                //
+                // // Detect forward vs backward intent
+                // float forwardIntent = 0f;
+                // if (inputVector.sqrMagnitude > 0.001f)
+                // {
+                //     forwardIntent = Vector2.Dot(inputVector.normalized, Vector2.up);
+                // }
+                //
+                // // Steering strength
+                // float steerStrength = inputVector.x;
+                //
+                // // Boost steering when dragging backward
+                // float reverseTurnBoost = forwardIntent < 0f ? Mathf.Lerp(1f, 1.5f, -forwardIntent) : 1f;
+                //
+                // float steerTorque = steerStrength * turnSpeedFactor * _context.ControlAuthority * throttle * reverseTurnBoost;
+                //
+                // _context.Rigidbody.AddTorque(Vector3.up * steerTorque, ForceMode.Acceleration);
             }
             else
             {
-                //Steering torque alone does not reliably redirect linear momentum at higher speeds.
-                //To achieve arcade-style responsiveness, I introduced a controlled velocity-alignment
-                //force that gently reshapes the velocity vector toward the vehicle’s facing direction while grounded.
-                velocity = _context.Rigidbody.linearVelocity;
-                Vector3 forward = transform.forward;
+                // Keyboard → forward/back + left/right turn (classic arcade feel)
+                float throttle = _input.Throttle;  // W/S or Up/Down
+                float steering = _input.Steering;  // A/D or Left/Right
+
+                // Apply torque for turning
+                _context.Rigidbody.AddTorque(Vector3.up * steering * turnSpeedFactor * _context.ControlAuthority, ForceMode.Acceleration);
+
+                // Forward force along vehicle forward
+                float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+                Vector3 force = forward * throttle * forwardSpeedFactor * driveAuthority;
+                _context.Rigidbody.AddForce(force, ForceMode.Acceleration);
+            }
+
+            // Grounded velocity alignment (arcade feel)
+            if (_context.IsGrounded)
+            {
+                Vector3 velocity = _context.Rigidbody.linearVelocity;
                 Vector3 projected = Vector3.Project(velocity, forward);
                 Vector3 correction = projected - velocity;
-                // Uses grip factor to determine how aggressively velocity is reshaped
                 _context.Rigidbody.AddForce(correction * 2.5f * _context.GripFactor, ForceMode.Acceleration);
             }
-            
-            if (_context.IsGrounded && IsUpsideDown())
+            else
             {
-                // Applies corrective torque to assist flip recovery.
-                // This does not auto-flip the vehicle; it biases recovery
-                // while still requiring player input or momentum.
-                Vector3 recoveryAxis = Vector3.Cross(transform.up, Vector3.up);
-                _context.Rigidbody.AddTorque(recoveryAxis * 20f * _context.GripFactor, ForceMode.Acceleration);
+                _context.Rigidbody.angularVelocity = Vector3.ClampMagnitude(_context.Rigidbody.angularVelocity, 2.5f);
+            }
+
+            ApplyUpsideDownRecovery();
+            ClampHorizontalSpeed();
+        }
+        
+        private void ApplyUpsideDownRecovery()
+        {
+            if (!_context.IsGrounded || !IsUpsideDown()) return;
+
+            Vector3 recoveryAxis = Vector3.Cross(transform.up, Vector3.up);
+            _context.Rigidbody.AddTorque(recoveryAxis * 20f * _context.GripFactor, ForceMode.Acceleration);
+        }
+
+        private void ClampHorizontalSpeed()
+        {
+            Vector3 vel = _context.Rigidbody.linearVelocity;
+            Vector3 horiz = new Vector3(vel.x, 0f, vel.z);
+            if (horiz.magnitude > maxSpeed)
+            {
+                horiz = horiz.normalized * maxSpeed;
+                _context.Rigidbody.linearVelocity = new Vector3(horiz.x, vel.y, horiz.z);
             }
         }
         

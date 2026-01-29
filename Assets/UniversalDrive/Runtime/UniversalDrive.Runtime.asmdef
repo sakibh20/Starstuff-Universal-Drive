@@ -1,0 +1,16 @@
+{
+    "name": "UniversalDrive.Runtime",
+    "rootNamespace": "UniversalDrive",
+    "references": [
+        "Joystick"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
