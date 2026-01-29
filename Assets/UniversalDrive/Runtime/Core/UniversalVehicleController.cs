@@ -142,7 +142,7 @@ namespace UniversalDrive
             Vector2 inputVector = mobile.InputVector;
 
             // Full authority when grounded, heavily reduced while airborne
-            float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+            float driveAuthority = _context.IsGrounded ? 1f : 0.1f;
 
             // Any joystick drag = forward intent
             // Magnitude-based so diagonal drag is not stronger than straight drag
@@ -188,7 +188,7 @@ namespace UniversalDrive
             float currentYaw = _context.Rigidbody.angularVelocity.y;
             float yawDelta = targetYaw - currentYaw;
 
-            float response = _context.IsGrounded ? steeringResponse : steeringResponse * 0.3f;
+            float response = _context.IsGrounded ? steeringResponse : steeringResponse * 0.01f;
 
             _context.Rigidbody.AddTorque(Vector3.up * yawDelta * response, ForceMode.Acceleration);
             
