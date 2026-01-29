@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace UniversalDrive
 {
-    [RequireComponent(typeof(UniversalVehicleController))]
     internal class MobileVehicleInput : MonoBehaviour, IVehicleInput
     {
         public VirtualJoystick joystick { get; set; }

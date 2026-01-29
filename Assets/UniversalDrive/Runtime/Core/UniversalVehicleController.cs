@@ -81,6 +81,9 @@ namespace UniversalDrive
 
         private void FixedUpdate()
         {
+            if (_vehicleTransform == null) return;
+            if (inputManager == null || inputManager.VehicleInput == null) return;
+            
             UpdateContext();
             _groundDetector.Update();
 
@@ -117,9 +120,6 @@ namespace UniversalDrive
         
         private void ApplyForces()
         {
-            if (_vehicleTransform == null) return;
-            if (inputManager == null || inputManager.VehicleInput == null) return;
-
             if (inputManager.VehicleInput is MobileVehicleInput mobile)
             {
                 ApplyMobileInput(mobile);
