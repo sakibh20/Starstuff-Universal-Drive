@@ -24,7 +24,7 @@ namespace UniversalDrive
         {
             // Half height of the vehicle + small margin
             // Bounds are world-space, so this works regardless of scale
-            _rayLength = bounds.extents.y + 0.05f;
+            _rayLength = bounds.extents.y + 0.1f;
 
             // Safety clamp in case bounds are weird during initialization
             _rayLength = Mathf.Max(_rayLength, 0.5f);
@@ -32,7 +32,8 @@ namespace UniversalDrive
 
         internal void Update()
         {
-            Ray ray = new Ray(_transform.position, Vector3.down);
+            Vector3 origin = _rigidbody.worldCenterOfMass + _transform.up * 0.1f; // small lift to avoid starting inside ground
+            Ray ray = new Ray(origin, -_transform.up);
 
             if (Physics.Raycast(ray, out RaycastHit hit, _rayLength))
             {

@@ -8,7 +8,7 @@ using UnityEngine;
 public class VehicleCameraFollow : MonoBehaviour
 {
     [Header("Target Vehicle")]
-    [SerializeField] private Transform target;
+    public Transform Target { get; set; }
 
     [Header("Follow Settings")]
     [SerializeField, Tooltip("How fast the camera follows position")] private float positionSmooth = 5f;
@@ -23,7 +23,7 @@ public class VehicleCameraFollow : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (target == null) return;
+        if (Target == null) return;
 
         // Compute bounds to adapt camera distance/height
         ComputeTargetBounds();
@@ -34,7 +34,7 @@ public class VehicleCameraFollow : MonoBehaviour
         float height = baseHeight + targetBounds.extents.y * boundsHeightFactor;
 
         // Desired position: behind vehicle along its forward axis
-        Vector3 desiredPosition = vehicleCenter - target.forward * distance + Vector3.up * height;
+        Vector3 desiredPosition = vehicleCenter - Target.forward * distance + Vector3.up * height;
 
         // Smooth position
         transform.position = Vector3.Lerp(transform.position, desiredPosition, positionSmooth * Time.deltaTime);
@@ -46,10 +46,10 @@ public class VehicleCameraFollow : MonoBehaviour
 
     private void ComputeTargetBounds()
     {
-        Renderer[] renderers = target.GetComponentsInChildren<Renderer>();
+        Renderer[] renderers = Target.GetComponentsInChildren<Renderer>();
         if (renderers.Length == 0)
         {
-            targetBounds = new Bounds(target.position, Vector3.one);
+            targetBounds = new Bounds(Target.position, Vector3.one);
             return;
         }
 

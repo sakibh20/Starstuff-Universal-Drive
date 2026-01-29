@@ -14,48 +14,69 @@ using UnityEngine;
 
 namespace UniversalDrive
 {
-    [RequireComponent(typeof(Rigidbody))]
-    internal sealed class UniversalVehicleController : MonoBehaviour
+    public sealed class UniversalVehicleController : MonoBehaviour
     {
         [SerializeField] private float forwardSpeedFactor = 30f;
         [SerializeField] private float turnSpeedFactor = 40f;
         [SerializeField] private float steeringResponse = 10f;   // How fast yaw reaches target
         [SerializeField] private float maxYawSpeed = 4f;       // Absolute yaw cap (rad/sec)
-
         [SerializeField] float maxSpeed = 30f;
 
         [SerializeField] private InputManager inputManager;
 
         private VehicleContext _context;
-
         private GroundDetector _groundDetector;
-
         private LateralGrip _lateralGrip;
         private UprightStabilization _uprightStabilization;
         private Downforce _downforce;
         private CenterOfMassAdjuster _centerOfMassAdjuster;
-        
         private Bounds _bounds;
+        private Transform _vehicleTransform;
 
         private void Awake()
         {
-            _context = new VehicleContext
-            {
-                Rigidbody = GetComponent<Rigidbody>()
-            };
-            
+            // Create empty context (no vehicle yet)
+            _context = new VehicleContext();
+
             if (inputManager == null)
             {
                 Debug.LogError("No InputManager found.");
             }
 
-            _groundDetector = new GroundDetector(transform, _context.Rigidbody);
+            // Create systems ONCE
             _uprightStabilization = new UprightStabilization();
             _lateralGrip = new LateralGrip();
             _downforce = new Downforce();
             _centerOfMassAdjuster = new CenterOfMassAdjuster();
+        }
+        
+        public void SetVehicle(Transform newVehicle)
+        {
+            if (newVehicle == null)
+            {
+                Debug.LogError("SetVehicle called with null transform.");
+                return;
+            }
 
-            InitializeRigidbody();
+            Rigidbody rb = newVehicle.GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                Debug.LogError("Vehicle must have a Rigidbody.");
+                return;
+            }
+
+            _vehicleTransform = newVehicle;
+
+            _context.Rigidbody = rb;
+
+            // Create / rebind vehicle-dependent systems
+            _groundDetector = new GroundDetector(_vehicleTransform, rb);
+
+            Bounds bounds = ComputeBounds();
+            _groundDetector.UpdateRayLength(bounds);
+            _centerOfMassAdjuster.Apply(_context, bounds);
+
+            InitializeRigidbodyRuntime();
         }
 
         private void FixedUpdate()
@@ -65,26 +86,22 @@ namespace UniversalDrive
 
             ApplyForces();
             //ApplyAirGravity();
-            _lateralGrip.Apply(_context, transform);
-            _uprightStabilization.Apply(_context, transform);
+            _lateralGrip.Apply(_context, _vehicleTransform);
+            _uprightStabilization.Apply(_context, _vehicleTransform);
             _downforce.Apply(_context);
         }
 
-        private void InitializeRigidbody()
+        private void InitializeRigidbodyRuntime()
         {
-            _bounds = ComputeBounds();
-            _centerOfMassAdjuster.Apply(_context, _bounds);
-            _groundDetector.UpdateRayLength(_bounds);
-            
             _context.Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-            _context.Rigidbody.mass = 1200f;      // or 1000–1500 range
+            _context.Rigidbody.mass = 1200f;
             _context.Rigidbody.linearDamping = 0.03f;
             _context.Rigidbody.angularDamping = 0.2f;
         }
 
         private void UpdateContext()
         {
-            Vector3 localVelocity = transform.InverseTransformDirection(_context.Rigidbody.linearVelocity);
+            Vector3 localVelocity = _vehicleTransform.InverseTransformDirection(_context.Rigidbody.linearVelocity);
 
             _context.ForwardSpeed = localVelocity.z;
             _context.LateralSpeed = localVelocity.x;
@@ -100,6 +117,7 @@ namespace UniversalDrive
         
         private void ApplyForces()
         {
+            if (_vehicleTransform == null) return;
             if (inputManager == null || inputManager.VehicleInput == null) return;
 
             if (inputManager.VehicleInput is MobileVehicleInput mobile)
@@ -138,7 +156,7 @@ namespace UniversalDrive
         /// </summary>
         private void ApplyMobileInput(MobileVehicleInput mobile)
         {
-            Vector3 forward = transform.forward;
+            Vector3 forward = _vehicleTransform.forward;
             Vector2 inputVector = mobile.InputVector;
 
             // Full authority when grounded, heavily reduced while airborne
@@ -171,7 +189,7 @@ namespace UniversalDrive
         /// </summary>
         private void ApplyKeyboardInput()
         {
-            Vector3 forward = transform.forward;
+            Vector3 forward = _vehicleTransform.forward;
 
             float throttle = inputManager.VehicleInput.Throttle;   // W/S or Up/Down
             float steering = inputManager.VehicleInput.Steering;   // A/D or Left/Right
@@ -208,7 +226,7 @@ namespace UniversalDrive
             if (_context.IsGrounded)
             {
                 Vector3 velocity = _context.Rigidbody.linearVelocity;
-                Vector3 forward = transform.forward;
+                Vector3 forward = _vehicleTransform.forward;
 
                 // Project velocity onto forward axis
                 Vector3 projected = Vector3.Project(velocity, forward);
@@ -238,7 +256,7 @@ namespace UniversalDrive
 
             // Bias torque toward upright orientation
             // Does not auto-flip — only assists recovery
-            Vector3 recoveryAxis = Vector3.Cross(transform.up, Vector3.up);
+            Vector3 recoveryAxis = Vector3.Cross(_vehicleTransform.up, Vector3.up);
             _context.Rigidbody.AddTorque(recoveryAxis * 20f * _context.GripFactor, ForceMode.Acceleration);
         }
         
@@ -265,8 +283,8 @@ namespace UniversalDrive
         {
             // Computes combined renderer bounds to represent the visual footprint
             // of the object regardless of collider configuration.
-            Bounds bounds = new Bounds(transform.position, Vector3.zero);
-            foreach (Renderer r in GetComponentsInChildren<Renderer>())
+            Bounds bounds = new Bounds(_vehicleTransform.position, Vector3.zero);
+            foreach (Renderer r in _vehicleTransform.GetComponentsInChildren<Renderer>())
             {
                 bounds.Encapsulate(r.bounds);
             }
@@ -276,22 +294,22 @@ namespace UniversalDrive
         bool IsUpsideDown()
         {
             // Dot product below threshold indicates the object is significantly inverted
-            return Vector3.Dot(transform.up, Vector3.up) < 0.2f;
+            return Vector3.Dot(_vehicleTransform.up, Vector3.up) < 0.2f;
         }
 
         private void OnDrawGizmosSelected()
         {
             if (_context == null || _context.Rigidbody == null) return;
 
-            Vector3 pos = transform.position;
+            Vector3 pos = _vehicleTransform.position;
 
             // Forward direction (vehicle facing)
             Gizmos.color = Color.green;
-            Gizmos.DrawLine(pos, pos + transform.forward * 2f);
+            Gizmos.DrawLine(pos, pos + _vehicleTransform.forward * 2f);
 
             // Lateral velocity visualization (sideways motion)
             Gizmos.color = Color.red;
-            Gizmos.DrawLine(pos, pos + transform.right * _context.LateralSpeed);
+            Gizmos.DrawLine(pos, pos + _vehicleTransform.right * _context.LateralSpeed);
 
             // Grip / ground authority indicator
             Gizmos.color = Color.blue;
@@ -299,8 +317,8 @@ namespace UniversalDrive
             
             // Ground detection ray
             Gizmos.color = _context.IsGrounded ? Color.green : Color.magenta;
-            Gizmos.DrawLine(transform.position, transform.position + Vector3.down * _groundDetector.DebugRayLength);
-
+            Gizmos.DrawLine(_vehicleTransform.position, _vehicleTransform.position - _vehicleTransform.up * _groundDetector.DebugRayLength);
+            
             // Center of mass visualization
             Gizmos.color = Color.yellow;
             Vector3 com = _context.Rigidbody.worldCenterOfMass;

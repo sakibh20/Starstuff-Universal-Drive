@@ -1,20 +1,31 @@
 using TMPro;
 using UnityEngine;
+using UniversalDrive;
 
 public class GameManager : MonoBehaviour
 {
     [SerializeField] private TMP_Dropdown tmpDropdown;
-    
     [SerializeField] private InputManager inputManager;
     [SerializeField] private GameObject settingsMenu;
+
+    [SerializeField] private GameObject carPrefab;
+    [SerializeField] private GameObject housePrefab;
+    [SerializeField] private GameObject bananaPrefab;
+    
+    [SerializeField] private VehicleCameraFollow vehicleCameraFollow;
+    [SerializeField] private UniversalVehicleController vehicleController;
+    
+    [SerializeField] private Transform vehicleParent;
+    
+    private Transform _vehicle;
     
     private bool _isSettingsMenuActive = false;
     
     void Start()
     {
         settingsMenu.SetActive(_isSettingsMenuActive);
-
         tmpDropdown.onValueChanged.AddListener(delegate { SetInputType(tmpDropdown); });
+        CarToggleChanged(true);
     }
 
     public void ToggleSettingsMenu()
@@ -46,22 +57,39 @@ public class GameManager : MonoBehaviour
     {
         inputManager.SetupFloatingJoystick();
     }
+    
+    public void CarToggleChanged(bool isOn)
+    {
+        if (!isOn) return;
+        SetNewVehicle(carPrefab);
+    }
+    
+    public void HouseToggleChanged(bool isOn)
+    {
+        if (!isOn) return;
+        SetNewVehicle(housePrefab);
+    }
+    
+    public void BananaToggleChanged(bool isOn)
+    {
+        if (!isOn) return;
+        SetNewVehicle(bananaPrefab);
+    }
 
-    // Allows switching the controlled vehicle at runtime
-    public void SetCar()
+    private void SetNewVehicle(GameObject vehiclePrefab)
     {
-        
+        if(_vehicle != null)
+        {
+            Destroy(_vehicle.gameObject);
+        }
+        _vehicle = Instantiate(vehiclePrefab, vehicleParent).transform;
+        SetTargets();
     }
     
-    // Allows switching the controlled vehicle at runtime
-    public void SetHouse()
+    private void SetTargets()
     {
+        vehicleCameraFollow.Target = _vehicle;
         
-    }
-    
-    // Allows switching the controlled vehicle at runtime
-    public void SetBanana()
-    {
-        
+        vehicleController.SetVehicle(_vehicle);
     }
 }
