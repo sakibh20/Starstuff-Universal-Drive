@@ -17,7 +17,7 @@ namespace UniversalDrive
     public sealed class UniversalVehicleController : MonoBehaviour
     {
         [SerializeField] private float forwardSpeedFactor = 30f;
-        [SerializeField] private float turnSpeedFactor = 40f;
+        [SerializeField] private float turnSpeedFactor = 35f;
         [SerializeField] private float steeringResponse = 10f;   // How fast yaw reaches target
         [SerializeField] private float maxYawSpeed = 4f;       // Absolute yaw cap (rad/sec)
         [SerializeField] float maxSpeed = 30f;
@@ -162,25 +162,51 @@ namespace UniversalDrive
             // Full authority when grounded, heavily reduced while airborne
             float driveAuthority = _context.IsGrounded ? 1f : 0.1f;
 
-            // Any joystick drag = forward intent
-            // Magnitude-based so diagonal drag is not stronger than straight drag
-            float throttle = Mathf.Clamp01(inputVector.magnitude);
+            // Angle between joystick and forward direction (in joystick space)
+            float angle = Vector2.Angle(Vector2.up, inputVector);
 
-            // Apply forward propulsion along vehicle forward
-            _context.Rigidbody.AddForce(forward * throttle * forwardSpeedFactor * driveAuthority, ForceMode.Acceleration);
+            // Dead zone for no movement
+            if (inputVector.magnitude < 0.1f) return;
+
+            // Allow reverse only if joystick is mostly backward (≈165°–180°)
+            bool isReverse = angle > 155f;
+
+            // Signed throttle
+            float throttle = inputVector.magnitude;
+            float driveSign = isReverse ? -1f : 1f;
+
+            // weaker reverse
+            float reverseMultiplier = isReverse ? 0.6f : 1f;
+
+            // Apply propulsion
+            _context.Rigidbody.AddForce(forward * driveSign * throttle * forwardSpeedFactor * reverseMultiplier * driveAuthority, ForceMode.Acceleration);
 
             // Steering comes purely from horizontal drag
             // Scaled by throttle so steering only happens when player intends to move
-            float targetYaw = inputVector.x * turnSpeedFactor * _context.ControlAuthority * throttle;
+            // 1. Dead zone
+            float steer = ApplyDeadZone(inputVector.x, 0.05f);
+
+            // 2. Non-linear curve (thumb friendly)
+            steer = Mathf.Sign(steer) * steer * steer;
+
+            // 3. Speed-based authority
+            float speed01 = Mathf.Clamp01(Mathf.Abs(_context.ForwardSpeed) / maxSpeed);
+            float steerStrength = Mathf.Lerp(0.55f, 0.80f, speed01);
+
+            float targetYaw = steer * turnSpeedFactor * steerStrength * throttle * _context.ControlAuthority;
 
             targetYaw = Mathf.Clamp(targetYaw, -maxYawSpeed, maxYawSpeed);
-
             float currentYaw = _context.Rigidbody.angularVelocity.y;
             float yawDelta = targetYaw - currentYaw;
 
-            float response = _context.IsGrounded ? steeringResponse : steeringResponse * 0.3f;
-
+            float response = _context.IsGrounded ? steeringResponse * 0.7f : steeringResponse * 0.1f;
             _context.Rigidbody.AddTorque(Vector3.up * yawDelta * response, ForceMode.Acceleration);
+        }
+        
+        private float ApplyDeadZone(float value, float deadZone)
+        {
+            if (Mathf.Abs(value) < deadZone) return 0f;
+            return Mathf.Sign(value) * (Mathf.Abs(value) - deadZone) / (1f - deadZone);
         }
         
         /// <summary>
