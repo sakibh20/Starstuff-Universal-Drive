@@ -1,37 +1,62 @@
 using UnityEngine;
 
-namespace UniversalDrive
+/// <summary>
+/// Simple arcade chase camera for UniversalDrive vehicles.
+/// Adjusts position and rotation based on vehicle bounds and velocity.
+/// </summary>
+[RequireComponent(typeof(Camera))]
+public class VehicleCameraFollow : MonoBehaviour
 {
-    internal sealed class SimpleFollowCamera : MonoBehaviour
+    [Header("Target Vehicle")]
+    [SerializeField] private Transform target;
+
+    [Header("Follow Settings")]
+    [SerializeField, Tooltip("How fast the camera follows position")] private float positionSmooth = 5f;
+    [SerializeField, Tooltip("How fast the camera rotates to look at target")] private float rotationSmooth = 5f;
+
+    [SerializeField, Tooltip("Base distance behind the vehicle")] private float baseDistance = 5f;
+    [SerializeField, Tooltip("Base height above the vehicle")] private float baseHeight = 3f;
+    [SerializeField, Tooltip("Extra distance multiplier based on vehicle bounds extents")] private float boundsDistanceFactor = 1.5f;
+    [SerializeField, Tooltip("Extra height multiplier based on vehicle bounds extents")] private float boundsHeightFactor = 1f;
+
+    private Bounds targetBounds;
+
+    private void LateUpdate()
     {
-        [SerializeField] private Transform target;
+        if (target == null) return;
 
-        [SerializeField] private Vector3 offset = new Vector3(0f, 5f, -8f);
-        [SerializeField] private float followSpeed = 5f;
-        [SerializeField] private float rotationSpeed = 5f;
+        // Compute bounds to adapt camera distance/height
+        ComputeTargetBounds();
 
-        private void LateUpdate()
+        Vector3 vehicleCenter = targetBounds.center;
+
+        float distance = baseDistance + targetBounds.extents.magnitude * boundsDistanceFactor;
+        float height = baseHeight + targetBounds.extents.y * boundsHeightFactor;
+
+        // Desired position: behind vehicle along its forward axis
+        Vector3 desiredPosition = vehicleCenter - target.forward * distance + Vector3.up * height;
+
+        // Smooth position
+        transform.position = Vector3.Lerp(transform.position, desiredPosition, positionSmooth * Time.deltaTime);
+
+        // Look at vehicle center
+        Quaternion desiredRotation = Quaternion.LookRotation(vehicleCenter - transform.position, Vector3.up);
+        transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, rotationSmooth * Time.deltaTime);
+    }
+
+    private void ComputeTargetBounds()
+    {
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
         {
-            if (target == null)
-                return;
+            targetBounds = new Bounds(target.position, Vector3.one);
+            return;
+        }
 
-            // Position
-            Vector3 desiredPosition = target.TransformPoint(offset);
-            transform.position = Vector3.Lerp(
-                transform.position,
-                desiredPosition,
-                followSpeed * Time.deltaTime
-            );
-
-            // Rotation (look at target)
-            Vector3 lookDirection = target.position - transform.position;
-            Quaternion targetRotation = Quaternion.LookRotation(lookDirection, Vector3.up);
-
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                targetRotation,
-                rotationSpeed * Time.deltaTime
-            );
+        targetBounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            targetBounds.Encapsulate(renderers[i].bounds);
         }
     }
 }

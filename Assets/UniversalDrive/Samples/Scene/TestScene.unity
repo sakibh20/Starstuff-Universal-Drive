@@ -387,9 +387,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UniversalDrive.Runtime::UniversalDrive.SimpleFollowCamera
   target: {fileID: 1955828365}
-  offset: {x: 0, y: 5, z: -8}
-  followSpeed: 10
-  rotationSpeed: 8
+  positionSmooth: 5
+  rotationSmooth: 15
+  baseDistance: 5
+  baseHeight: 3
+  boundsDistanceFactor: 1.5
+  boundsHeightFactor: 1
 --- !u!1 &345517485
 GameObject:
   m_ObjectHideFlags: 0
@@ -943,7 +946,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &541411603
 Transform:
   m_ObjectHideFlags: 0
@@ -1709,9 +1712,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 740c487c062c7074e93c86cb66adb21a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UniversalDrive.Runtime::UniversalDrive.UniversalVehicleController
-  forwardSpeedFactor: 20
+  forwardSpeedFactor: 25
   turnSpeedFactor: 40
-  maxSpeed: 15
+  maxSpeed: 20
 --- !u!54 &1955828371
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1805,7 +1808,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8345070699079395523, guid: 09aade0ecefd01e4b8f7661acf64f5c2, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
