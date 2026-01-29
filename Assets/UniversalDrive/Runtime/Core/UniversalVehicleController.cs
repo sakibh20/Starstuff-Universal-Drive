@@ -24,8 +24,9 @@ namespace UniversalDrive
 
         [SerializeField] float maxSpeed = 30f;
 
+        [SerializeField] private InputManager inputManager;
+
         private VehicleContext _context;
-        private IVehicleInput _input;
 
         private GroundDetector _groundDetector;
 
@@ -42,11 +43,10 @@ namespace UniversalDrive
             {
                 Rigidbody = GetComponent<Rigidbody>()
             };
-
-            _input = GetComponent<IVehicleInput>();
-            if (_input == null)
+            
+            if (inputManager == null)
             {
-                Debug.LogError("No IVehicleInput found on vehicle.");
+                Debug.LogError("No InputManager found.");
             }
 
             _groundDetector = new GroundDetector(transform, _context.Rigidbody);
@@ -100,9 +100,9 @@ namespace UniversalDrive
         
         private void ApplyForces()
         {
-            if (_input == null) return;
+            if (inputManager == null || inputManager.VehicleInput == null) return;
 
-            if (_input is MobileVehicleInput mobile)
+            if (inputManager.VehicleInput is MobileVehicleInput mobile)
             {
                 ApplyMobileInput(mobile);
             }
@@ -173,8 +173,8 @@ namespace UniversalDrive
         {
             Vector3 forward = transform.forward;
 
-            float throttle = _input.Throttle;   // W/S or Up/Down
-            float steering = _input.Steering;   // A/D or Left/Right
+            float throttle = inputManager.VehicleInput.Throttle;   // W/S or Up/Down
+            float steering = inputManager.VehicleInput.Steering;   // A/D or Left/Right
 
             float speed01 = Mathf.Clamp01(Mathf.Abs(_context.ForwardSpeed) / maxSpeed);
 
@@ -216,7 +216,7 @@ namespace UniversalDrive
                 // Correction force nudges velocity toward forward direction
                 Vector3 correction = projected - velocity;
 
-                float steerInfluence = Mathf.Abs(_input?.Steering ?? 0f);
+                float steerInfluence = Mathf.Abs(inputManager.VehicleInput?.Steering ?? 0f);
                 float gripBoost = Mathf.Lerp(1f, 1.2f, steerInfluence);
 
                 _context.Rigidbody.AddForce(correction * 4.5f * _context.GripFactor * gripBoost, ForceMode.Acceleration);

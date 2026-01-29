@@ -3,9 +3,9 @@ using UnityEngine;
 namespace UniversalDrive
 {
     [RequireComponent(typeof(UniversalVehicleController))]
-    public class MobileVehicleInput : MonoBehaviour, IVehicleInput
+    internal class MobileVehicleInput : MonoBehaviour, IVehicleInput
     {
-        [SerializeField] private VirtualJoystick joystick;
+        public VirtualJoystick joystick { get; set; }
 
         public float Throttle { get; private set; }
         public float Steering { get; private set; }
