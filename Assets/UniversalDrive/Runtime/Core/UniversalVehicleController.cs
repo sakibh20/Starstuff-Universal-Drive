@@ -88,7 +88,7 @@ namespace UniversalDrive
             _groundDetector.Update();
 
             ApplyForces();
-            //ApplyAirGravity();
+            ApplyAirGravity();
             _lateralGrip.Apply(_context, _vehicleTransform);
             _uprightStabilization.Apply(_context, _vehicleTransform);
             _downforce.Apply(_context);
@@ -160,7 +160,7 @@ namespace UniversalDrive
             Vector2 inputVector = mobile.InputVector;
 
             // Full authority when grounded, heavily reduced while airborne
-            float driveAuthority = _context.IsGrounded ? 1f : 0.1f;
+            float driveAuthority = _context.IsGrounded ? 1f : 0f;
 
             // Angle between joystick and forward direction (in joystick space)
             float angle = Vector2.Angle(Vector2.up, inputVector);
@@ -173,7 +173,7 @@ namespace UniversalDrive
 
             // Signed throttle
             float throttle = inputVector.magnitude;
-            float driveSign = isReverse ? -1f : 1f;
+            float driveSign = isReverse ? -1f : 0.9f;
 
             // weaker reverse
             float reverseMultiplier = isReverse ? 0.6f : 1f;
@@ -199,7 +199,7 @@ namespace UniversalDrive
             float currentYaw = _context.Rigidbody.angularVelocity.y;
             float yawDelta = targetYaw - currentYaw;
 
-            float response = _context.IsGrounded ? steeringResponse * 0.7f : steeringResponse * 0.1f;
+            float response = _context.IsGrounded ? steeringResponse * 0.6f : steeringResponse * 0.1f;
             _context.Rigidbody.AddTorque(Vector3.up * yawDelta * response, ForceMode.Acceleration);
         }
         
