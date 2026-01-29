@@ -17,12 +17,12 @@ namespace UniversalDrive
     [RequireComponent(typeof(Rigidbody))]
     internal sealed class UniversalVehicleController : MonoBehaviour
     {
-        [SerializeField] private float forwardSpeedFactor = 25f;
+        [SerializeField] private float forwardSpeedFactor = 30f;
         [SerializeField] private float turnSpeedFactor = 40f;
         [SerializeField] private float steeringResponse = 10f;   // How fast yaw reaches target
         [SerializeField] private float maxYawSpeed = 4f;       // Absolute yaw cap (rad/sec)
 
-        [SerializeField] float maxSpeed = 25f;
+        [SerializeField] float maxSpeed = 30f;
 
         private VehicleContext _context;
         private IVehicleInput _input;

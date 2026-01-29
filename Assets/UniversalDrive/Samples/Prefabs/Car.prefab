@@ -130,11 +130,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 740c487c062c7074e93c86cb66adb21a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UniversalDrive.Runtime::UniversalDrive.UniversalVehicleController
-  forwardSpeedFactor: 25
+  forwardSpeedFactor: 30
   turnSpeedFactor: 40
   steeringResponse: 10
   maxYawSpeed: 4
-  maxSpeed: 25
+  maxSpeed: 30
 --- !u!114 &4577498433840486448
 MonoBehaviour:
   m_ObjectHideFlags: 0

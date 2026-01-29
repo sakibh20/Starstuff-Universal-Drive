@@ -24,7 +24,7 @@ namespace UniversalDrive
         {
             // Half height of the vehicle + small margin
             // Bounds are world-space, so this works regardless of scale
-            _rayLength = bounds.extents.y + 0.2f;
+            _rayLength = bounds.extents.y + 0.05f;
 
             // Safety clamp in case bounds are weird during initialization
             _rayLength = Mathf.Max(_rayLength, 0.5f);
