@@ -1381,6 +1381,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: UniversalDrive.Runtime::UniversalDrive.UniversalVehicleController
   forwardSpeedFactor: 25
   turnSpeedFactor: 40
+  steeringResponse: 10
+  maxYawSpeed: 2.5
   maxSpeed: 20
 --- !u!54 &1955828371
 Rigidbody:
@@ -1761,6 +1763,26 @@ PrefabInstance:
     - target: {fileID: 2722436103193733759, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
       propertyPath: m_Name
       value: Car
+      objectReference: {fileID: 0}
+    - target: {fileID: 6478020470060788856, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
+      propertyPath: maxSpeed
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 6478020470060788856, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
+      propertyPath: maxYawSpeed
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 6478020470060788856, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
+      propertyPath: turnSpeedFactor
+      value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 6478020470060788856, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
+      propertyPath: steeringResponse
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 6478020470060788856, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
+      propertyPath: forwardSpeedFactor
+      value: 25
       objectReference: {fileID: 0}
     - target: {fileID: 7544989658056735775, guid: 7ba822a984afb9d48bc3cefd115042ee, type: 3}
       propertyPath: m_LocalPosition.x

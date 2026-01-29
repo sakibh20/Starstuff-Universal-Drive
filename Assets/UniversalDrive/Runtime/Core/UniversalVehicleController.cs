@@ -17,9 +17,12 @@ namespace UniversalDrive
     [RequireComponent(typeof(Rigidbody))]
     internal sealed class UniversalVehicleController : MonoBehaviour
     {
-        [SerializeField] private float forwardSpeedFactor = 20f;
+        [SerializeField] private float forwardSpeedFactor = 25f;
         [SerializeField] private float turnSpeedFactor = 40f;
-        [SerializeField] float maxSpeed = 15f;
+        [SerializeField] private float steeringResponse = 10f;   // How fast yaw reaches target
+        [SerializeField] private float maxYawSpeed = 4f;       // Absolute yaw cap (rad/sec)
+
+        [SerializeField] float maxSpeed = 25f;
 
         private VehicleContext _context;
         private IVehicleInput _input;
@@ -61,6 +64,7 @@ namespace UniversalDrive
             _groundDetector.Update();
 
             ApplyForces();
+            //ApplyAirGravity();
             _lateralGrip.Apply(_context, transform);
             _uprightStabilization.Apply(_context, transform);
             _downforce.Apply(_context);
@@ -73,7 +77,9 @@ namespace UniversalDrive
             _groundDetector.UpdateRayLength(_bounds);
             
             _context.Rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-            _context.Rigidbody.angularDamping = 1f;
+            _context.Rigidbody.mass = 1200f;      // or 1000–1500 range
+            _context.Rigidbody.linearDamping = 0.03f;
+            _context.Rigidbody.angularDamping = 0.2f;
         }
 
         private void UpdateContext()
@@ -147,8 +153,16 @@ namespace UniversalDrive
 
             // Steering comes purely from horizontal drag
             // Scaled by throttle so steering only happens when player intends to move
-            float steerTorque = inputVector.x * turnSpeedFactor * _context.ControlAuthority * throttle;
-            _context.Rigidbody.AddTorque(Vector3.up * steerTorque, ForceMode.Acceleration);
+            float targetYaw = inputVector.x * turnSpeedFactor * _context.ControlAuthority * throttle;
+
+            targetYaw = Mathf.Clamp(targetYaw, -maxYawSpeed, maxYawSpeed);
+
+            float currentYaw = _context.Rigidbody.angularVelocity.y;
+            float yawDelta = targetYaw - currentYaw;
+
+            float response = _context.IsGrounded ? steeringResponse : steeringResponse * 0.3f;
+
+            _context.Rigidbody.AddTorque(Vector3.up * yawDelta * response, ForceMode.Acceleration);
         }
         
         /// <summary>
@@ -162,11 +176,24 @@ namespace UniversalDrive
             float throttle = _input.Throttle;   // W/S or Up/Down
             float steering = _input.Steering;   // A/D or Left/Right
 
-            // Apply steering torque regardless of throttle
-            _context.Rigidbody.AddTorque(Vector3.up * steering * turnSpeedFactor * _context.ControlAuthority, ForceMode.Acceleration);
+            float speed01 = Mathf.Clamp01(Mathf.Abs(_context.ForwardSpeed) / maxSpeed);
 
+            // Steering authority based on speed
+            float steerStrength = Mathf.Lerp(0.3f, 1f, speed01);
+
+            float targetYaw = steering * turnSpeedFactor * steerStrength * _context.ControlAuthority;
+
+            targetYaw = Mathf.Clamp(targetYaw, -maxYawSpeed, maxYawSpeed);
+
+            float currentYaw = _context.Rigidbody.angularVelocity.y;
+            float yawDelta = targetYaw - currentYaw;
+
+            float response = _context.IsGrounded ? steeringResponse : steeringResponse * 0.3f;
+
+            _context.Rigidbody.AddTorque(Vector3.up * yawDelta * response, ForceMode.Acceleration);
+            
             // Full authority when grounded, heavily reduced while airborne
-            float driveAuthority = _context.IsGrounded ? 1f : 0.2f;
+            float driveAuthority = _context.IsGrounded ? 1f : 0f;
 
             // Apply forward propulsion along vehicle forward
             _context.Rigidbody.AddForce(forward * throttle * forwardSpeedFactor * driveAuthority, ForceMode.Acceleration);
@@ -189,7 +216,14 @@ namespace UniversalDrive
                 // Correction force nudges velocity toward forward direction
                 Vector3 correction = projected - velocity;
 
-                _context.Rigidbody.AddForce(correction * 2.5f * _context.GripFactor, ForceMode.Acceleration);
+                float steerInfluence = Mathf.Abs(_input?.Steering ?? 0f);
+                float gripBoost = Mathf.Lerp(1f, 1.2f, steerInfluence);
+
+                _context.Rigidbody.AddForce(correction * 4.5f * _context.GripFactor * gripBoost, ForceMode.Acceleration);
+                
+                Vector3 av = _context.Rigidbody.angularVelocity;
+                av.y = Mathf.Clamp(av.y, -maxYawSpeed, maxYawSpeed);
+                _context.Rigidbody.angularVelocity = av;
             }
             else
             {
@@ -206,6 +240,14 @@ namespace UniversalDrive
             // Does not auto-flip — only assists recovery
             Vector3 recoveryAxis = Vector3.Cross(transform.up, Vector3.up);
             _context.Rigidbody.AddTorque(recoveryAxis * 20f * _context.GripFactor, ForceMode.Acceleration);
+        }
+        
+        private void ApplyAirGravity()
+        {
+            if (_context.IsGrounded) return;
+
+            // Extra gravity to counter floatiness
+            _context.Rigidbody.AddForce(Physics.gravity * 1.2f, ForceMode.Acceleration);
         }
 
         private void ClampHorizontalSpeed()
